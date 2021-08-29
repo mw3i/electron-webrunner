@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+    <head>
+
+        <!-- webrunner dependency -->
+        <script src='static/utils.js'></script>
+
+        <!-- materials -->
+        <script src='static/materials/ocanvas-2.10.0.js'></script>
+        <script src='static/materials/stimuli.js'></script>
+
+        <!-- experiment phases -->
+        <script src='static/instructions.js'></script>
+        <script src='static/edgeClassification.js'></script>
+        <script src='static/edgeObservation.js'></script>
+        <script src='static/edgeObservation2.js'></script>
+
+    </head>
+
+    <body style = 'background: rgb(208, 213, 219);'>
+        <div id='main'></div>
+
+        <script type="text/javascript">
+            // window.onbeforeunload = function() { return "Are you sure you want to go back? Your data will not be saved"; }
+
+            // Variable to store subject info & data
+            subject = {
+                id: parseInt(localStorage.getItem('subject_id')),
+                condition: parseInt(localStorage.getItem('condition')),
+                results: {
+                    'trainingPhase': [],
+                    'generalizationPhase': [],
+                }
+            }
+
+            stim = stimuli.generatePairs()
+            obs_stimsets = [
+                stim.observation7,
+                stim.observation8,
+                stim.observation9,
+            ]
+
+            counter = edgeClassification.shuffle([0,1])[0] // <-- counterbalancer switch unit
+
+            // event graph that triggers progression of experiment
+            eventGraph = {
+
+				startingInstructions: function () {
+					instructions.start(
+						{instructions: stimuli['startingInstructions']['2']}, // <-- stimuli comes from `materials/stimuli.py`
+                        eventGraph.trainingPhase
+					)
+				},
+
+                trainingPhase: function () {
+                    edgeObservation2.start(
+                        {
+                          'pairs': obs_stimsets,
+                          'n_blocks': 1,
+                          'results': subject['results']['trainingPhase'], // <-- where to store the results
+                          'feedback': true,
+                        },
+                        eventGraph.generalizationPhaseInstructions
+                    )
+                },
+
+                generalizationPhaseInstructions: function () {
+                    instructions.start(
+						{instructions: stimuli['generalizationPhaseInstructions']}, // <-- stimuli comes from `materials/stimuli.py`
+						eventGraph.generalizationPhase
+					)
+                },
+
+                generalizationPhase: function() {
+                    edgeClassification.start(
+                        {
+                          'pairs': stim.generalization,
+                          'n_blocks': 1,
+                          'results': subject['results']['generalizationPhase'], // <-- where to store the results
+                          'feedback': false,
+                          'c': counter,
+                        },
+                        eventGraph.end
+                    )
+                },
+
+				end: function () {
+					instructions.start(
+                        {instructions: stimuli['exitInstructions']},
+                        function () {
+                            save(subject)
+                        }
+                    )
+				}
+
+            }
+            // eventGraph.startingInstructions()
+            eventGraph.end()
+
+        </script>
+
+    </body>
+
+</html>
